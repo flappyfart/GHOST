@@ -1,1 +1,1 @@
-worker: /usr/local/bin/python bot.py
+worker: python3 bot.py
