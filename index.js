@@ -12,7 +12,7 @@ bot.on('polling_error', (error) => {
 });
 
 // Use a more limited set of ASCII chars for better definition
-const ASCII_CHARS = '░▒▓█';
+const ASCII_CHARS = '@#$%=+~-. ';
 
 async function generateAsciiArtImage(imageUrl, width = 100) {
   try {
@@ -35,14 +35,14 @@ async function generateAsciiArtImage(imageUrl, width = 100) {
         const brightness = (0.299 * imageData.data[idx] + 
                           0.587 * imageData.data[idx + 1] + 
                           0.114 * imageData.data[idx + 2]) / 255;
-        const charIndex = Math.floor(brightness * (ASCII_CHARS.length - 1));
+        const charIndex = Math.floor((1 - brightness) * (ASCII_CHARS.length - 1));
         row.push(ASCII_CHARS[charIndex]);
       }
       asciiChars.push(row);
     }
     
     // Create final image canvas
-    const charWidth = 12;
+    const charWidth = 8;
     const charHeight = 12;
     const padding = 20;
     const finalCanvas = createCanvas(
@@ -51,13 +51,13 @@ async function generateAsciiArtImage(imageUrl, width = 100) {
     );
     const ctx = finalCanvas.getContext('2d');
     
-    // Set background
-    ctx.fillStyle = '#1E1E1E';
+    // Set terminal-style black background
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
     
-    // Set text properties
+    // Set text properties - using bright terminal green
     ctx.font = `${charHeight}px "Courier New"`;
-    ctx.fillStyle = '#E9967A';
+    ctx.fillStyle = '#00FF00';
     ctx.textBaseline = 'top';
     
     // Draw ASCII characters
