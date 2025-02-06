@@ -1,11 +1,11 @@
-from telegram import Update
+from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from PIL import Image
 import numpy as np
 import os
 
-# 🔥 Replace with your BotFather token
-TOKEN = "YOUR_NEW_BOT_TOKEN"
+# Get token from environment variable
+TOKEN = os.getenv('BOT_TOKEN')
 
 # ASCII Characters used for ASCII Art
 ASCII_CHARS = "@%#*+=-:. "
@@ -32,25 +32,82 @@ def handle_image(update: Update, context: CallbackContext):
     file_path = "image.jpg"
     file.download(file_path)
 
-    # Convert to ASCII
-    ascii_art = image_to_ascii(file_path)
+    try:
+        # Convert to ASCII
+        ascii_art = image_to_ascii(file_path)
+        # Send the ASCII art back
+        update.message.reply_text(f"```\n{ascii_art}\n```", parse_mode=ParseMode.MARKDOWN_V2)
+    except Exception as e:
+        update.message.reply_text("Sorry, there was an error processing your image. Please try again.")
+    finally:
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
-    # Send the ASCII art back
-    update.message.reply_text(f"```\n{ascii_art}\n```", parse_mode="MarkdownV2")
-
-    # Cleanup
-    os.remove(file_path)
-
-# Start command
+# Command handlers
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("📸 Send me an image, and I'll convert it into ASCII art!")
+    welcome_message = (
+        "👋 Welcome to ASCII Art Bot!\n\n"
+        "I can convert your images into ASCII art. Here are my commands:\n\n"
+        "/start - Show this welcome message\n"
+        "/help - Show help information\n"
+        "/about - Learn more about this bot\n"
+        "/settings - View current settings\n\n"
+        "Simply send me any image and I'll convert it to ASCII art! 🎨"
+    )
+    update.message.reply_text(welcome_message)
+
+def help_command(update: Update, context: CallbackContext):
+    help_text = (
+        "🤖 *ASCII Art Bot Help*\n\n"
+        "*How to use:*\n"
+        "1. Send any image to the bot\n"
+        "2. Wait for the bot to process it\n"
+        "3. Receive your ASCII art!\n\n"
+        "*Available Commands:*\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n"
+        "/about - About this bot\n"
+        "/settings - View current settings\n\n"
+        "*Tips:*\n"
+        "• Images with good contrast work best\n"
+        "• The output is best viewed with a monospace font\n"
+        "• Try different types of images to see what works best!"
+    )
+    update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+
+def about_command(update: Update, context: CallbackContext):
+    about_text = (
+        "ℹ️ *About ASCII Art Bot*\n\n"
+        "This bot converts your images into ASCII art using characters like @, #, *, etc.\n\n"
+        "ASCII art is a graphic design technique that creates images using text characters.\n\n"
+        "Created with ❤️ using Python and the python-telegram-bot library."
+    )
+    update.message.reply_text(about_text, parse_mode=ParseMode.MARKDOWN)
+
+def settings_command(update: Update, context: CallbackContext):
+    settings_text = (
+        "⚙️ *Current Settings*\n\n"
+        "• Output Width: 100 characters\n"
+        "• Characters Used: @%#*+=-:. \n"
+        "• Color Mode: Grayscale\n\n"
+        "Note: Settings customization will be available in future updates!"
+    )
+    update.message.reply_text(settings_text, parse_mode=ParseMode.MARKDOWN)
 
 # Main function
 def main():
+    if not TOKEN:
+        raise ValueError("No BOT_TOKEN provided in environment variables!")
+        
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
+    # Add command handlers
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("about", about_command))
+    dp.add_handler(CommandHandler("settings", settings_command))
     dp.add_handler(MessageHandler(Filters.photo, handle_image))
 
     updater.start_polling()
