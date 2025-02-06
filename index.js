@@ -11,16 +11,21 @@ bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
 });
 
-// ASCII art characters from dark to light
-const ASCII_CHARS = '@%#*+=-:. ';
+// Extended ASCII characters for more detail (from darkest to lightest)
+const ASCII_CHARS = '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ';
 
-async function imageToAscii(imageUrl, width = 50) {
+async function imageToAscii(imageUrl, width = 100) { // Increased default width for more detail
   try {
     const image = await loadImage(imageUrl);
+    // Adjust height to maintain aspect ratio (multiply by 0.5 to account for terminal character height/width ratio)
     const height = Math.round((image.height / image.width) * width * 0.5);
     
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
+    
+    // Use better image rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     
     ctx.drawImage(image, 0, 0, width, height);
     const imageData = ctx.getImageData(0, 0, width, height);
@@ -29,9 +34,15 @@ async function imageToAscii(imageUrl, width = 50) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        const avg = (imageData.data[idx] + imageData.data[idx + 1] + imageData.data[idx + 2]) / 3;
-        const charIndex = Math.floor((avg / 255) * (ASCII_CHARS.length - 1));
-        asciiArt += ASCII_CHARS[charIndex];
+        // Calculate brightness using a more accurate formula
+        const brightness = (0.299 * imageData.data[idx] + 
+                          0.587 * imageData.data[idx + 1] + 
+                          0.114 * imageData.data[idx + 2]) / 255;
+        
+        // Get character index based on brightness
+        const charIndex = Math.floor(brightness * (ASCII_CHARS.length - 1));
+        // Add character twice to make the output more square-like
+        asciiArt += ASCII_CHARS[charIndex] + ASCII_CHARS[charIndex];
       }
       asciiArt += '\n';
     }
@@ -47,7 +58,7 @@ async function imageToAscii(imageUrl, width = 50) {
 bot.onText(/\/start/, (msg) => {
   console.log('Received /start command from:', msg.chat.id);
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Welcome to ASCII Art Bot! 🎨\n\nSend me an image, and I will convert it into ASCII art.');
+  bot.sendMessage(chatId, 'Welcome to ASCII Art Bot! 🎨\n\nSend me an image, and I will convert it into detailed ASCII art.');
 });
 
 // Handle incoming images
@@ -73,10 +84,16 @@ bot.on('photo', async (msg) => {
     // Generate ASCII art
     const asciiArt = await imageToAscii(imageUrl);
     
-    // Send the ASCII art in a monospace font
-    await bot.sendMessage(chatId, `\`\`\`\n${asciiArt}\`\`\``, {
-      parse_mode: 'Markdown'
-    });
+    // Split the ASCII art into chunks if it's too long for one message
+    const maxLength = 4096; // Telegram message length limit
+    const chunks = asciiArt.match(new RegExp(`.{1,${maxLength}}`, 'g')) || [];
+    
+    // Send each chunk as a separate message
+    for (const chunk of chunks) {
+      await bot.sendMessage(chatId, `\`\`\`\n${chunk}\`\`\``, {
+        parse_mode: 'Markdown'
+      });
+    }
     
     // Delete the processing message
     await bot.deleteMessage(chatId, processingMsg.message_id);
