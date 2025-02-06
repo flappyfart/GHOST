@@ -1,7 +1,18 @@
 {
-  "name": "node-starter",
-  "private": true,
+  "name": "telegram-ascii-art-bot",
+  "version": "1.0.0",
+  "description": "A Telegram bot that generates ASCII art",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "canvas": "^2.11.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
