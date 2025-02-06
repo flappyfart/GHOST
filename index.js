@@ -1,6 +1,7 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
+const fs = require('fs');
 
 // Initialize the bot with polling
 const token = process.env.BOT_TOKEN;
@@ -11,43 +12,67 @@ bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
 });
 
-// Extended ASCII characters for more detail (from darkest to lightest)
-const ASCII_CHARS = '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ';
+// Use simpler characters for better visual clarity
+const ASCII_CHARS = '@#*+=:-. ';
 
-async function imageToAscii(imageUrl, width = 100) { // Increased default width for more detail
+async function generateAsciiArtImage(imageUrl, width = 60) {
   try {
     const image = await loadImage(imageUrl);
-    // Adjust height to maintain aspect ratio (multiply by 0.5 to account for terminal character height/width ratio)
     const height = Math.round((image.height / image.width) * width * 0.5);
     
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+    // First canvas for processing the image
+    const processCanvas = createCanvas(width, height);
+    const processCtx = processCanvas.getContext('2d');
     
-    // Use better image rendering
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    processCtx.drawImage(image, 0, 0, width, height);
+    const imageData = processCtx.getImageData(0, 0, width, height);
     
-    ctx.drawImage(image, 0, 0, width, height);
-    const imageData = ctx.getImageData(0, 0, width, height);
-    
-    let asciiArt = '';
+    // Generate ASCII characters
+    let asciiChars = [];
     for (let y = 0; y < height; y++) {
+      let row = [];
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        // Calculate brightness using a more accurate formula
         const brightness = (0.299 * imageData.data[idx] + 
                           0.587 * imageData.data[idx + 1] + 
                           0.114 * imageData.data[idx + 2]) / 255;
-        
-        // Get character index based on brightness
         const charIndex = Math.floor(brightness * (ASCII_CHARS.length - 1));
-        // Add character twice to make the output more square-like
-        asciiArt += ASCII_CHARS[charIndex] + ASCII_CHARS[charIndex];
+        row.push(ASCII_CHARS[charIndex]);
       }
-      asciiArt += '\n';
+      asciiChars.push(row);
     }
     
-    return asciiArt;
+    // Create final image canvas
+    const fontSize = 20;
+    const padding = 40;
+    const finalCanvas = createCanvas(
+      width * fontSize * 0.6 + padding * 2,
+      height * fontSize + padding * 2
+    );
+    const ctx = finalCanvas.getContext('2d');
+    
+    // Set background
+    ctx.fillStyle = '#1E1E1E';
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    
+    // Set text properties
+    ctx.font = `${fontSize}px monospace`;
+    ctx.fillStyle = '#E9967A'; // Coral color similar to your example
+    ctx.textBaseline = 'top';
+    
+    // Draw ASCII characters
+    asciiChars.forEach((row, y) => {
+      row.forEach((char, x) => {
+        ctx.fillText(
+          char,
+          x * fontSize * 0.6 + padding,
+          y * fontSize + padding
+        );
+      });
+    });
+    
+    // Save canvas to buffer
+    return finalCanvas.toBuffer('image/png');
   } catch (error) {
     console.error('Error generating ASCII art:', error);
     throw error;
@@ -58,7 +83,7 @@ async function imageToAscii(imageUrl, width = 100) { // Increased default width 
 bot.onText(/\/start/, (msg) => {
   console.log('Received /start command from:', msg.chat.id);
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Welcome to ASCII Art Bot! 🎨\n\nSend me an image, and I will convert it into detailed ASCII art.');
+  bot.sendMessage(chatId, 'Welcome to ASCII Art Bot! 🎨\n\nSend me an image, and I will convert it into stylized ASCII art.');
 });
 
 // Handle incoming images
@@ -81,19 +106,13 @@ bot.on('photo', async (msg) => {
     // Get the image URL
     const imageUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
     
-    // Generate ASCII art
-    const asciiArt = await imageToAscii(imageUrl);
+    // Generate ASCII art as PNG
+    const asciiArtBuffer = await generateAsciiArtImage(imageUrl);
     
-    // Split the ASCII art into chunks if it's too long for one message
-    const maxLength = 4096; // Telegram message length limit
-    const chunks = asciiArt.match(new RegExp(`.{1,${maxLength}}`, 'g')) || [];
-    
-    // Send each chunk as a separate message
-    for (const chunk of chunks) {
-      await bot.sendMessage(chatId, `\`\`\`\n${chunk}\`\`\``, {
-        parse_mode: 'Markdown'
-      });
-    }
+    // Send the image
+    await bot.sendPhoto(chatId, asciiArtBuffer, {
+      caption: 'Here\'s your ASCII art! 🎨'
+    });
     
     // Delete the processing message
     await bot.deleteMessage(chatId, processingMsg.message_id);
