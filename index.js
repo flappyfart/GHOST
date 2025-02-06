@@ -1,7 +1,6 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const { createCanvas, loadImage, registerFont } = require('canvas');
-const fs = require('fs');
+const { createCanvas, loadImage } = require('canvas');
 
 // Initialize the bot with polling
 const token = process.env.BOT_TOKEN;
@@ -12,10 +11,10 @@ bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
 });
 
-// Use simpler characters for better visual clarity
-const ASCII_CHARS = '@#*+=:-. ';
+// Use a more limited set of ASCII chars for better definition
+const ASCII_CHARS = '░▒▓█';
 
-async function generateAsciiArtImage(imageUrl, width = 60) {
+async function generateAsciiArtImage(imageUrl, width = 100) {
   try {
     const image = await loadImage(imageUrl);
     const height = Math.round((image.height / image.width) * width * 0.5);
@@ -43,11 +42,12 @@ async function generateAsciiArtImage(imageUrl, width = 60) {
     }
     
     // Create final image canvas
-    const fontSize = 20;
-    const padding = 40;
+    const charWidth = 12;
+    const charHeight = 12;
+    const padding = 20;
     const finalCanvas = createCanvas(
-      width * fontSize * 0.6 + padding * 2,
-      height * fontSize + padding * 2
+      width * charWidth + padding * 2,
+      height * charHeight + padding * 2
     );
     const ctx = finalCanvas.getContext('2d');
     
@@ -56,8 +56,8 @@ async function generateAsciiArtImage(imageUrl, width = 60) {
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
     
     // Set text properties
-    ctx.font = `${fontSize}px monospace`;
-    ctx.fillStyle = '#E9967A'; // Coral color similar to your example
+    ctx.font = `${charHeight}px "Courier New"`;
+    ctx.fillStyle = '#E9967A';
     ctx.textBaseline = 'top';
     
     // Draw ASCII characters
@@ -65,8 +65,8 @@ async function generateAsciiArtImage(imageUrl, width = 60) {
       row.forEach((char, x) => {
         ctx.fillText(
           char,
-          x * fontSize * 0.6 + padding,
-          y * fontSize + padding
+          x * charWidth + padding,
+          y * charHeight + padding
         );
       });
     });
