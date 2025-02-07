@@ -11,8 +11,8 @@ bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
 });
 
-// Use a more limited set of ASCII chars for better definition
-const ASCII_CHARS = '@#$%=+~-. ';
+// Use a wider range of characters for better gradients
+const ASCII_CHARS = '█▓▒░ ';
 
 async function generateAsciiArtImage(imageUrl, width = 100) {
   try {
@@ -23,7 +23,11 @@ async function generateAsciiArtImage(imageUrl, width = 100) {
     const processCanvas = createCanvas(width, height);
     const processCtx = processCanvas.getContext('2d');
     
+    // Draw and flip colors
+    processCtx.fillStyle = 'white';
+    processCtx.fillRect(0, 0, width, height);
     processCtx.drawImage(image, 0, 0, width, height);
+    
     const imageData = processCtx.getImageData(0, 0, width, height);
     
     // Generate ASCII characters
@@ -32,18 +36,23 @@ async function generateAsciiArtImage(imageUrl, width = 100) {
       let row = [];
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        const brightness = (0.299 * imageData.data[idx] + 
-                          0.587 * imageData.data[idx + 1] + 
-                          0.114 * imageData.data[idx + 2]) / 255;
-        const charIndex = Math.floor((1 - brightness) * (ASCII_CHARS.length - 1));
+        // Calculate brightness using proper RGB weights
+        const brightness = Math.round(
+          (0.299 * imageData.data[idx] + 
+           0.587 * imageData.data[idx + 1] + 
+           0.114 * imageData.data[idx + 2]) / 255 * 100
+        ) / 100;
+        
+        // Map brightness to character index
+        const charIndex = Math.floor(brightness * (ASCII_CHARS.length - 1));
         row.push(ASCII_CHARS[charIndex]);
       }
       asciiChars.push(row);
     }
     
-    // Create final image canvas
-    const charWidth = 8;
-    const charHeight = 12;
+    // Create final image canvas with adjusted dimensions
+    const charWidth = 10;  // Increased for better visibility
+    const charHeight = 15; // Increased for better visibility
     const padding = 20;
     const finalCanvas = createCanvas(
       width * charWidth + padding * 2,
@@ -51,23 +60,21 @@ async function generateAsciiArtImage(imageUrl, width = 100) {
     );
     const ctx = finalCanvas.getContext('2d');
     
-    // Set terminal-style black background
+    // Set background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
     
-    // Set text properties - using bright terminal green
-    ctx.font = `${charHeight}px "Courier New"`;
+    // Set text properties
+    ctx.font = `bold ${charHeight}px "Courier New"`;
     ctx.fillStyle = '#00FF00';
     ctx.textBaseline = 'top';
     
     // Draw ASCII characters
     asciiChars.forEach((row, y) => {
+      const lineY = y * charHeight + padding;
       row.forEach((char, x) => {
-        ctx.fillText(
-          char,
-          x * charWidth + padding,
-          y * charHeight + padding
-        );
+        const charX = x * charWidth + padding;
+        ctx.fillText(char, charX, lineY);
       });
     });
     
